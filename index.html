@@ -1,162 +1,455 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulación caudal - Río Cauca, La Virginia</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-  .contenedor { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-  h1 { color: #0b5394; }
-  canvas { border: 1px solid #ccc; width: 100%; height: auto; }
-  .controles { margin: 15px 0; }
-  select, button { padding: 8px 12px; font-size: 16px; }
-  #resultado { margin-top: 15px; font-size: 18px; background: #e8f0fe; padding: 15px; border-radius: 8px; }
-  .nota { font-size: 14px; color: #555; }
-</style>
+  <meta charset="UTF-8">
+  <title>Dashboard Interactivo - Simulación de Caudales (Río Cauca)</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent-blue: #38bdf8;
+      --up-color: #22c55e;
+      --down-color: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 24px;
+      margin: 0;
+      color: var(--accent-blue);
+    }
+    header p {
+      color: var(--text-muted);
+      margin-top: 5px;
+      font-size: 14px;
+    }
+    .grid-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      text-align: center;
+    }
+    .metric-card .title {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .metric-card .value {
+      font-size: 22px;
+      font-weight: bold;
+      margin-top: 8px;
+      color: var(--accent-blue);
+    }
+    .controls-panel {
+      background: var(--card-bg);
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #334155;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: #334155;
+      color: var(--text-main);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--accent-blue);
+      color: #0f172a;
+      font-weight: bold;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .slider-container input[type=range] {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      accent-color: var(--accent-blue);
+    }
+    .btn-play {
+      background: var(--accent-blue);
+      border: none;
+      color: #0f172a;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    canvas {
+      width: 100%;
+      height: 420px;
+      background: #090d16;
+      border-radius: 10px;
+      border: 1px solid #334155;
+    }
+    .details-panel {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+      border-left: 4px solid var(--accent-blue);
+    }
+    .code-box {
+      font-family: monospace;
+      background: #090d16;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: #38bdf8;
+      display: inline-block;
+      margin: 5px 0;
+    }
+  </style>
 </head>
 <body>
-<div class="contenedor">
-  <h1>Simulación de caudal y volumen</h1>
-  <p><strong>Río Cauca - Estación La Virginia (Risaralda)</strong></p>
-  <p>Datos simulados con fines pedagógicos. Seis registros entre el 24 y el 25 de agosto de 2026.</p>
-  <div class="controles">
-    <label for="intervalo">Intervalo a calcular:</label>
-    <select id="intervalo" onchange="dibujar()">
-      <option value="first">Primer intervalo (0 a 6 h)</option>
-      <option value="all">Periodo completo (0 a 36 h)</option>
-    </select>
-    <button onclick="dibujar()">Calcular</button>
+
+<div class="container">
+  <header>
+    <h1>Simulación Interactiva v2: Cálculo de Volumen e Integrales</h1>
+    <p>Río Cauca · Estación La Virginia (Risaralda) · Datos de la Tabla 1</p>
+  </header>
+
+  <!-- Tarjetas métricas dinámicas -->
+  <div class="grid-metrics">
+    <div class="metric-card">
+      <div class="title">Tiempo Actual (t)</div>
+      <div class="value" id="valTiempo">0.0 h</div>
+    </div>
+    <div class="metric-card">
+      <div class="title">Caudal Instantáneo Q(t)</div>
+      <div class="value" id="valCaudal">1162.18 m³/s</div>
+    </div>
+    <div class="metric-card">
+      <div class="title">Volumen Acumulado</div>
+      <div class="value" id="valVolumen">0 m³</div>
+    </div>
+    <div class="metric-card">
+      <div class="title">Estado del Flujo</div>
+      <div class="value" id="valEstado" style="color:var(--up-color);">Estable</div>
+    </div>
   </div>
-  <canvas id="grafica" width="900" height="500"></canvas>
-  <div id="resultado"></div>
-  <p class="nota">La simulación usa la integral definida como área bajo los segmentos. Volumen = 3600 × área, porque 1 h = 3600 s.</p>
+
+  <!-- Controles interactivos -->
+  <div class="controls-panel">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="setModo('primer', this)">Primer Intervalo (0-6h)</button>
+      <button class="tab-btn" onclick="setModo('completo', this)">Periodo Completo (0-36h)</button>
+      <button class="tab-btn" onclick="setModo('t1', this)">Tramo 1 (0-6h)</button>
+      <button class="tab-btn" onclick="setModo('t2', this)">Tramo 2 (6-12h)</button>
+      <button class="tab-btn" onclick="setModo('t3', this)">Tramo 3 (12-24h)</button>
+      <button class="tab-btn" onclick="setModo('t4', this)">Tramo 4 (24-30h)</button>
+      <button class="tab-btn" onclick="setModo('t5', this)">Tramo 5 (30-36h)</button>
+    </div>
+
+    <div class="slider-container">
+      <button class="btn-play" id="btnPlay" onclick="togglePlay()">▶ Reproducir</button>
+      <input type="range" id="timeSlider" min="0" max="36" step="0.1" value="0" oninput="onSliderChange()">
+      <span id="sliderLabel" style="font-weight:bold; width:60px;">0.0 h</span>
+    </div>
+  </div>
+
+  <!-- Canvas principal de gráfica -->
+  <canvas id="mainCanvas" width="960" height="420"></canvas>
+
+  <!-- Panel de desglose matemático -->
+  <div class="details-panel" id="mathDetails"></div>
 </div>
+
 <script>
-const datos = [
-  { t: 0,  q: 1162.18, fecha: "24/08/2026 06:00" },
-  { t: 6,  q: 1173.05, fecha: "24/08/2026 12:00" },
-  { t: 12, q: 1108.83, fecha: "24/08/2026 18:00" },
-  { t: 24, q: 1213.33, fecha: "25/08/2026 06:00" },
-  { t: 30, q: 1265.22, fecha: "25/08/2026 12:00" },
-  { t: 36, q: 1228.10, fecha: "25/08/2026 18:00" }
-];
+  // Registros de la Tabla 1
+  const datos = [
+    { t: 0,  q: 1162.18 },
+    { t: 6,  q: 1173.05 },
+    { t: 12, q: 1108.83 },
+    { t: 24, q: 1213.33 },
+    { t: 30, q: 1265.22 },
+    { t: 36, q: 1228.10 }
+  ];
 
-const canvas = document.getElementById('grafica');
-const ctx = canvas.getContext('2d');
+  let modoActual = 'primer';
+  let tSimulacion = 0;
+  let isPlaying = false;
+  let timerId = null;
 
-function dibujar() {
-  const modo = document.getElementById('intervalo').value;
-  const ancho = canvas.width;
-  const alto = canvas.height;
-  const margen = { izq: 80, der: 40, arr: 40, aba: 60 };
-  const xMin = 0, xMax = 36;
-  const yMin = 0, yMax = 1400;
+  function getQ(tVal) {
+    if (tVal <= 0) return datos.q;
+    if (tVal >= 36) return datos[datos.length - 1].q;
 
-  const xEscala = (ancho - margen.izq - margen.der) / (xMax - xMin);
-  const yEscala = (alto - margen.arr - margen.aba) / (yMax - yMin);
-
-  function xPix(t) { return margen.izq + (t - xMin) * xEscala; }
-  function yPix(q) { return margen.arr + (yMax - q) * yEscala; }
-
-  ctx.clearRect(0, 0, ancho, alto);
-
-  let inicio = 0;
-  let fin = datos.length - 1;
-  if (modo === 'first') fin = 1;
-
-  ctx.fillStyle = 'rgba(70, 130, 180, 0.35)';
-  for (let i = inicio; i < fin; i++) {
-    const p1 = datos[i];
-    const p2 = datos[i + 1];
-    ctx.beginPath();
-    ctx.moveTo(xPix(p1.t), yPix(0));
-    ctx.lineTo(xPix(p1.t), yPix(p1.q));
-    ctx.lineTo(xPix(p2.t), yPix(p2.q));
-    ctx.lineTo(xPix(p2.t), yPix(0));
-    ctx.closePath();
-    ctx.fill();
+    for (let i = 0; i < datos.length - 1; i++) {
+      if (tVal >= datos[i].t && tVal <= datos[i+1].t) {
+        let dt = datos[i+1].t - datos[i].t;
+        let dq = datos[i+1].q - datos[i].q;
+        let frac = (tVal - datos[i].t) / dt;
+        return datos[i].q + dq * frac;
+      }
+    }
+    return datos.q;
   }
 
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(margen.izq, margen.arr);
-  ctx.lineTo(margen.izq, alto - margen.aba);
-  ctx.lineTo(ancho - margen.der, alto - margen.aba);
-  ctx.stroke();
+  function getAreaHasta(tVal) {
+    let area = 0;
+    for (let i = 0; i < datos.length - 1; i++) {
+      let tA = datos[i].t;
+      let tB = datos[i+1].t;
+      let qA = datos[i].q;
+      let qB = datos[i+1].q;
 
-  ctx.fillStyle = '#333';
-  ctx.font = '12px Arial';
-  ctx.textAlign = 'center';
-  for (let t = 0; t <= 36; t += 6) {
-    const x = xPix(t);
+      if (tVal >= tB) {
+        area += ((qA + qB) / 2) * (tB - tA);
+      } else if (tVal > tA) {
+        let qActual = getQ(tVal);
+        area += ((qA + qActual) / 2) * (tVal - tA);
+        break;
+      }
+    }
+    return area;
+  }
+
+  function setModo(modo, elem) {
+    modoActual = modo;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (elem) elem.classList.add('active');
+
+    if (modo === 'primer' || modo === 't1') {
+      document.getElementById('timeSlider').max = 6;
+      if (tSimulacion > 6) tSimulacion = 6;
+    } else if (modo.startsWith('t')) {
+      let idx = parseInt(modo.replace('t',''));
+      let tFin = datos[idx].t;
+      document.getElementById('timeSlider').max = tFin;
+      tSimulacion = tFin;
+    } else {
+      document.getElementById('timeSlider').max = 36;
+    }
+    updateUI();
+  }
+
+  function onSliderChange() {
+    tSimulacion = parseFloat(document.getElementById('timeSlider').value);
+    updateUI();
+  }
+
+  function togglePlay() {
+    isPlaying = !isPlaying;
+    let btn = document.getElementById('btnPlay');
+    if (isPlaying) {
+      btn.textContent = '⏸ Pausa';
+      timerId = setInterval(() => {
+        let maxT = parseFloat(document.getElementById('timeSlider').max);
+        tSimulacion += 0.2;
+        if (tSimulacion > maxT) {
+          tSimulacion = 0;
+        }
+        document.getElementById('timeSlider').value = tSimulacion;
+        updateUI();
+      }, 50);
+    } else {
+      btn.textContent = '▶ Reproducir';
+      clearInterval(timerId);
+    }
+  }
+
+  function updateUI() {
+    document.getElementById('sliderLabel').textContent = tSimulacion.toFixed(1) + ' h';
+    document.getElementById('valTiempo').textContent = tSimulacion.toFixed(1) + ' h';
+
+    let qCurr = getQ(tSimulacion);
+    document.getElementById('valCaudal').textContent = qCurr.toFixed(2) + ' m³/s';
+
+    let areaAcc = getAreaHasta(tSimulacion);
+    let volAcc = areaAcc * 3600;
+    document.getElementById('valVolumen').textContent = volAcc.toLocaleString('es-CO', {maximumFractionDigits:0}) + ' m³';
+
+    // Estado de tendencia
+    let estadoElem = document.getElementById('valEstado');
+    if (tSimulacion === 0) {
+      estadoElem.textContent = 'Inicio (t=0)';
+      estadoElem.style.color = 'var(--accent-blue)';
+    } else {
+      let qPrev = getQ(Math.max(0, tSimulacion - 0.2));
+      if (qCurr > qPrev) {
+        estadoElem.textContent = 'Ascendiendo ↗';
+        estadoElem.style.color = 'var(--up-color)';
+      } else if (qCurr < qPrev) {
+        estadoElem.textContent = 'Disminuyendo ↘';
+        estadoElem.style.color = 'var(--down-color)';
+      } else {
+        estadoElem.textContent = 'Estable ➔';
+        estadoElem.style.color = 'var(--accent-blue)';
+      }
+    }
+
+    renderCanvas();
+    renderMathDetails();
+  }
+
+  function renderCanvas() {
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const padL = 70, padR = 30, padT = 30, padB = 50;
+    const w = canvas.width - padL - padR;
+    const h = canvas.height - padT - padB;
+
+    let maxT = (modoActual === 'primer' || modoActual === 't1') ? 6 : 36;
+    let maxQ = 1400;
+
+    function mapX(t) { return padL + (t / maxT) * w; }
+    function mapY(q) { return padT + h - (q / maxQ) * h; }
+
+    // Rejilla
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    for (let q = 0; q <= maxQ; q += 200) {
+      let y = mapY(q);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke();
+      ctx.fillStyle = '#64748b'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(q, padL - 10, y + 4);
+    }
+
+    // Dibujar tramos sombreados por colores de tendencia
+    for (let i = 0; i < datos.length - 1; i++) {
+      if (datos[i].t >= maxT) break;
+      let tA = datos[i].t;
+      let tB = Math.min(datos[i+1].t, maxT);
+      let qA = datos[i].q;
+      let qB = getQ(tB);
+
+      let isUp = (datos[i+1].q >= datos[i].q);
+
+      ctx.beginPath();
+      ctx.moveTo(mapX(tA), mapY(0));
+      ctx.lineTo(mapX(tA), mapY(qA));
+      ctx.lineTo(mapX(tB), mapY(qB));
+      ctx.lineTo(mapX(tB), mapY(0));
+      ctx.closePath();
+      ctx.fillStyle = isUp ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)';
+      ctx.fill();
+
+      // Linea del segmento
+      ctx.beginPath();
+      ctx.moveTo(mapX(tA), mapY(qA));
+      ctx.lineTo(mapX(tB), mapY(qB));
+      ctx.strokeStyle = isUp ? '#22c55e' : '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Indicador temporal dinámico (linea vertical flotante)
+    if (tSimulacion <= maxT) {
+      let xSim = mapX(tSimulacion);
+      let qSim = getQ(tSimulacion);
+      let ySim = mapY(qSim);
+
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6]);
+      ctx.beginPath();
+      ctx.moveTo(xSim, mapY(0));
+      ctx.lineTo(xSim, ySim);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.beginPath();
+      ctx.arc(xSim, ySim, 7, 0, 2*Math.PI);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Puntos de la tabla
+    datos.forEach(d => {
+      if (d.t <= maxT) {
+        ctx.beginPath();
+        ctx.arc(mapX(d.t), mapY(d.q), 4, 0, 2*Math.PI);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`(${d.t}h, ${d.q})`, mapX(d.t), mapY(d.q) - 10);
+      }
+    });
+
+    // Ejes
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x, alto - margen.aba);
-    ctx.lineTo(x, alto - margen.aba + 5);
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + h); ctx.lineTo(padL + w, padT + h);
     ctx.stroke();
-    ctx.fillText(t, x, alto - margen.aba + 20);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Tiempo t (horas)', padL + w/2, canvas.height - 12);
   }
 
-  ctx.textAlign = 'right';
-  for (let q = 0; q <= 1400; q += 200) {
-    const y = yPix(q);
-    ctx.beginPath();
-    ctx.moveTo(margen.izq - 5, y);
-    ctx.lineTo(margen.izq, y);
-    ctx.stroke();
-    ctx.fillText(q, margen.izq - 10, y + 4);
+  function renderMathDetails() {
+    let mathBox = document.getElementById('mathDetails');
+    let v1 = ( ((1162.18 + 1173.05)/2)*6 ) * 3600; // 25220484
+    let vTot = 42699.90 * 3600; // 153719640
+
+    if (modoActual === 'primer' || modoActual === 't1') {
+      mathBox.innerHTML = `
+        <h3>Análisis Matemático: Primer Intervalo (t ∈ [4] h)</h3>
+        <p><strong>Función lineal del primer segmento:</strong> <span class="code-box">f(t) = 1162.18 + 1.811667 · t</span></p>
+        <p><strong>Planteamiento de la integral definida:</strong></p>
+        <div class="code-box">V₁ = 3600 · ∫₀⁶ (1162.18 + 1.811667 · t) dt</div>
+        <p><strong>Resultado exacto:</strong> Área = 7,005.69 (m³/s)·h  ⟹  <strong style="color:var(--accent-blue); font-size:18px;">V₁ = 25,220,484 m³</strong></p>
+      `;
+    } else {
+      mathBox.innerHTML = `
+        <h3>Análisis Matemático: Periodo Completo (t ∈  h)</h3>
+        <p><strong>Suma de las integrales definidas de los 5 segmentos rectos:</strong></p>
+        <div class="code-box">V_total = 3600 · ∑ᵢ₌₁⁵ ∫ fᵢ(t) dt = 3600 · (7005.69 + 6845.64 + 13932.96 + 7435.65 + 7479.96)</div>
+        <p><strong>Área total bajo los segmentos:</strong> 42,699.90 (m³/s)·h</p>
+        <p><strong>Volumen acumulado total:</strong> <strong style="color:var(--accent-blue); font-size:20px;">V_total = 153,719,640 m³</strong></p>
+      `;
+    }
   }
 
-  ctx.save();
-  ctx.translate(20, alto / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = 'center';
-  ctx.font = '14px Arial';
-  ctx.fillText('Caudal Q (m³/s)', 0, 0);
-  ctx.restore();
-  ctx.textAlign = 'center';
-  ctx.fillText('Tiempo t (horas)', ancho / 2, alto - 15);
-
-  ctx.strokeStyle = '#0b5394';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  datos.forEach((p, i) => {
-    const x = xPix(p.t);
-    const y = yPix(p.q);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.fillStyle = '#d62728';
-  datos.forEach(p => {
-    const x = xPix(p.t);
-    const y = yPix(p.q);
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.font = '11px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(p.q.toFixed(2), x + 8, y - 8);
-    ctx.fillStyle = '#d62728';
-  });
-
-  let area = 0;
-  for (let i = inicio; i < fin; i++) {
-    const p1 = datos[i];
-    const p2 = datos[i + 1];
-    area += (p1.q + p2.q) / 2 * (p2.t - p1.t);
-  }
-  const volumen = area * 3600;
-
-  document.getElementById('resultado').innerHTML =
-    `<strong>Área bajo la curva:</strong> ${area.toFixed(2)} (m³/s)·h<br>` +
-    `<strong>Volumen de agua:</strong> ${volumen.toLocaleString('es-CO', { maximumFractionDigits: 0 })} m³`;
-}
-
-dibujar();
+  // Inicialización
+  updateUI();
 </script>
+
 </body>
 </html>
