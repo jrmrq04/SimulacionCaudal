@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulación caudal - Río Cauca, La Virginia</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+  .contenedor { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  h1 { color: #0b5394; }
+  canvas { border: 1px solid #ccc; width: 100%; height: auto; }
+  .controles { margin: 15px 0; }
+  select, button { padding: 8px 12px; font-size: 16px; }
+  #resultado { margin-top: 15px; font-size: 18px; background: #e8f0fe; padding: 15px; border-radius: 8px; }
+  .nota { font-size: 14px; color: #555; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <h1>Simulación de caudal y volumen</h1>
+  <p><strong>Río Cauca - Estación La Virginia (Risaralda)</strong></p>
+  <p>Datos simulados con fines pedagógicos. Seis registros entre el 24 y el 25 de agosto de 2026.</p>
+  <div class="controles">
+    <label for="intervalo">Intervalo a calcular:</label>
+    <select id="intervalo" onchange="dibujar()">
+      <option value="first">Primer intervalo (0 a 6 h)</option>
+      <option value="all">Periodo completo (0 a 36 h)</option>
+    </select>
+    <button onclick="dibujar()">Calcular</button>
+  </div>
+  <canvas id="grafica" width="900" height="500"></canvas>
+  <div id="resultado"></div>
+  <p class="nota">La simulación usa la integral definida como área bajo los segmentos. Volumen = 3600 × área, porque 1 h = 3600 s.</p>
+</div>
+<script>
+const datos = [
+  { t: 0,  q: 1162.18, fecha: "24/08/2026 06:00" },
+  { t: 6,  q: 1173.05, fecha: "24/08/2026 12:00" },
+  { t: 12, q: 1108.83, fecha: "24/08/2026 18:00" },
+  { t: 24, q: 1213.33, fecha: "25/08/2026 06:00" },
+  { t: 30, q: 1265.22, fecha: "25/08/2026 12:00" },
+  { t: 36, q: 1228.10, fecha: "25/08/2026 18:00" }
+];
+
+const canvas = document.getElementById('grafica');
+const ctx = canvas.getContext('2d');
+
+function dibujar() {
+  const modo = document.getElementById('intervalo').value;
+  const ancho = canvas.width;
+  const alto = canvas.height;
+  const margen = { izq: 80, der: 40, arr: 40, aba: 60 };
+  const xMin = 0, xMax = 36;
+  const yMin = 0, yMax = 1400;
+
+  const xEscala = (ancho - margen.izq - margen.der) / (xMax - xMin);
+  const yEscala = (alto - margen.arr - margen.aba) / (yMax - yMin);
+
+  function xPix(t) { return margen.izq + (t - xMin) * xEscala; }
+  function yPix(q) { return margen.arr + (yMax - q) * yEscala; }
+
+  ctx.clearRect(0, 0, ancho, alto);
+
+  let inicio = 0;
+  let fin = datos.length - 1;
+  if (modo === 'first') fin = 1;
+
+  ctx.fillStyle = 'rgba(70, 130, 180, 0.35)';
+  for (let i = inicio; i < fin; i++) {
+    const p1 = datos[i];
+    const p2 = datos[i + 1];
+    ctx.beginPath();
+    ctx.moveTo(xPix(p1.t), yPix(0));
+    ctx.lineTo(xPix(p1.t), yPix(p1.q));
+    ctx.lineTo(xPix(p2.t), yPix(p2.q));
+    ctx.lineTo(xPix(p2.t), yPix(0));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(margen.izq, margen.arr);
+  ctx.lineTo(margen.izq, alto - margen.aba);
+  ctx.lineTo(ancho - margen.der, alto - margen.aba);
+  ctx.stroke();
+
+  ctx.fillStyle = '#333';
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'center';
+  for (let t = 0; t <= 36; t += 6) {
+    const x = xPix(t);
+    ctx.beginPath();
+    ctx.moveTo(x, alto - margen.aba);
+    ctx.lineTo(x, alto - margen.aba + 5);
+    ctx.stroke();
+    ctx.fillText(t, x, alto - margen.aba + 20);
+  }
+
+  ctx.textAlign = 'right';
+  for (let q = 0; q <= 1400; q += 200) {
+    const y = yPix(q);
+    ctx.beginPath();
+    ctx.moveTo(margen.izq - 5, y);
+    ctx.lineTo(margen.izq, y);
+    ctx.stroke();
+    ctx.fillText(q, margen.izq - 10, y + 4);
+  }
+
+  ctx.save();
+  ctx.translate(20, alto / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.font = '14px Arial';
+  ctx.fillText('Caudal Q (m³/s)', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.fillText('Tiempo t (horas)', ancho / 2, alto - 15);
+
+  ctx.strokeStyle = '#0b5394';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  datos.forEach((p, i) => {
+    const x = xPix(p.t);
+    const y = yPix(p.q);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = '#d62728';
+  datos.forEach(p => {
+    const x = xPix(p.t);
+    const y = yPix(p.q);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.q.toFixed(2), x + 8, y - 8);
+    ctx.fillStyle = '#d62728';
+  });
+
+  let area = 0;
+  for (let i = inicio; i < fin; i++) {
+    const p1 = datos[i];
+    const p2 = datos[i + 1];
+    area += (p1.q + p2.q) / 2 * (p2.t - p1.t);
+  }
+  const volumen = area * 3600;
+
+  document.getElementById('resultado').innerHTML =
+    `<strong>Área bajo la curva:</strong> ${area.toFixed(2)} (m³/s)·h<br>` +
+    `<strong>Volumen de agua:</strong> ${volumen.toLocaleString('es-CO', { maximumFractionDigits: 0 })} m³`;
+}
+
+dibujar();
+</script>
+</body>
+</html>
